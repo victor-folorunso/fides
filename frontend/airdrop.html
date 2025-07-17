@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Airdrop</title>
+  <link rel="stylesheet" href="/style/shared.css" />
+  <script src="https://unpkg.com/@worldcoin/minikit@latest/dist/index.umd.js"></script>
+</head>
+<body data-page="airdrop">
+  <!-- Splash screen -->
+  <div id="splash-screen">
+    <img
+      id="splash-image"
+      src="/assets/splash-default.jpeg"
+      alt="Loading..."
+      style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 999;"
+    />
+
+  </div>
+
+  <!-- Main content hidden initially -->
+  <div id="main-content" style="display: none;">
+    <h1>🏱 Airdrop</h1>
+    <p>Claim your unique FIDES reward.</p>
+    <button id="claimBtn">Claim</button>
+    <div id="claimStatus"></div>
+  </div>
+
+  <script src="/scripts/splash.js"></script>
+  <script>
+    const kit = new worldcoin.Minikit({
+      client_id: "app_80af6fc808c2ce7dd8a96c12f9c5702d", // replace with real value
+      response_type: "code", // Explicitly request the authorization code flow
+      scope: "openid",      // Request the openid scope
+      redirect_uri: "https://eb8cf91aef3f.ngrok-free.app/callback"
+    });
+
+    window.kit = kit;
+
+    document.getElementById("claimBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("claimBtn");
+      const status = document.getElementById("claimStatus");
+      btn.disabled = true;
+      status.innerText = "⏳ Claiming...";
+
+      try {
+        const res = await fetch("/api/claim", {
+          method: "POST",
+          credentials: "include"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Claim failed");
+        }
+
+        const jwtPayload = data.signed_claim;
+
+        const tx = await kit.sendTransactionWithJWT(jwtPayload);
+        status.innerText = "✅ Claimed! TX Hash: " + tx.transaction_hash;
+      } catch (err) {
+        console.error(err);
+        status.innerText = "❌ " + err.message;
+      }
+
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

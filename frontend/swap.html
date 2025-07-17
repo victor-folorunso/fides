@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Swap</title>
+  <link rel="stylesheet" href="style/shared.css" />
+  <script src="https://unpkg.com/@worldcoin/minikit@latest/dist/index.umd.js"></script>
+</head>
+<body data-page="swap">
+  <!-- Splash screen -->
+  <div id="splash-screen">
+    <img
+      id="splash-image"
+      src="/assets/splash-default.jpeg"
+      alt="Loading..."
+      style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 999;"
+    />
+  </div>
+
+  <!-- Main content hidden initially -->
+  <div id="main-content" style="display: none;">
+    <h1>🔄 Swap</h1>
+    <p>Your balance: <span id="balance">100</span> FIDES</p>
+    <input type="number" placeholder="FIDES to swap" />
+    <br />
+    <button id="swapBtn">Swap to USDT</button>
+  </div>
+
+  <script src="/scripts/splash.js"></script>
+</body>
+</html>

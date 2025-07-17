@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vault</title>
+  <link rel="stylesheet" href="/style/shared.css" />
+  <!-- ✅ Add MiniKit for World App -->
+  <script src="https://unpkg.com/@worldcoin/minikit@latest/dist/index.umd.js"></script>
+</head>
+<body data-page="vault">
+  <!-- Splash screen -->
+  <div id="splash-screen">
+    <img
+      id="splash-image"
+      src="/assets/splash-default.jpeg"
+      alt="Loading..."
+      style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 999;"
+    />
+
+  </div>
+  <div  id="main-content" style="display: none;" >
+      
+    <h1>💰 Solidarity Vault</h1>
+    <p>Choose your vaulting option:</p>
+
+    <select id="duration">
+      <option value="1">1 month @ 1% APY</option>
+      <option value="6">6 months @ 5% APY</option>
+      <option value="12">12 months @ 10% APY</option>
+    </select>
+
+    <input type="number" id="amount" placeholder="Enter amount of FIDES" />
+    <br />
+    <button id="vaultBtn">Vault</button>
+
+    <div id="vaultStatus"></div>
+
+    <hr>
+
+    <h2>Released or Completed Stakes</h2>
+    <div id="releasedStakes">
+      <p>No completed stakes to claim yet.</p>
+    </div>
+    <div id="claimStakeStatus"></div>
+  </div>
+
+  <script src="/scripts/splash.js"></script>
+  <script>
+    // Vaulting logic
+    document.getElementById("vaultBtn").addEventListener("click", async () => {
+      const amount = document.getElementById("amount").value;
+      const duration = document.getElementById("duration").value;
+      const status = document.getElementById("vaultStatus");
+
+      if (!amount || amount <= 0) {
+        status.textContent = "❌ Please enter a valid amount.";
+        return;
+      }
+
+      status.textContent = "⏳ Preparing vault transaction...";
+
+      try {
+        const res = await fetch("/api/vault", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "include",
+          body: JSON.stringify({ amount, duration })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.message || "Vaulting failed");
+
+        const jwtPayload = data.signed_claim;
+
+        // ✅ Check if inside World App with MiniKit
+        if (!window.kit || typeof window.kit.sendTransactionWithJWT !== "function") {
+          throw new Error("This feature is not available.");
+        }
+
+        // 🔐 Send JWT to World App to initiate transaction
+        const tx = await window.kit.sendTransactionWithJWT(jwtPayload);
+
+        // ✅ Call backend to confirm and store vault stake
+        const confirmRes = await fetch("/api/vault/confirm", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            tx_hash: tx.transaction_hash
+          })
+        });
+
+        const confirmData = await confirmRes.json();
+
+        if (!confirmRes.ok) throw new Error(confirmData.message || "Vault confirmation failed");
+
+        status.textContent = "✅ Vaulted successfully! TX Hash: " + tx.transaction_hash;
+      } catch (err) {
+        console.error("Vaulting error:", err);
+        status.textContent = "❌ " + err.message;
+      }
+    });
+
+    // Fetch and display completed stakes
+    async function loadCompletedStakes() {
+      const releasedStakesDiv = document.getElementById("releasedStakes");
+      const claimStakeStatusDiv = document.getElementById("claimStakeStatus");
+
+      releasedStakesDiv.innerHTML = `<p>Loading completed stakes...</p>`;
+
+      try {
+        const res = await fetch("/api/completed-stakes", {
+          method: "GET",
+          credentials: "include"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to load completed stakes.");
+        }
+
+        if (data.stakes && data.stakes.length > 0) {
+          releasedStakesDiv.innerHTML = '';
+
+          data.stakes.forEach(stake => {
+            const stakeItem = document.createElement('div');
+            stakeItem.className = 'stake-item';
+
+            const maturedDate = stake.matured_on
+              ? new Date(stake.matured_on * 1000).toLocaleDateString()
+              : 'N/A';
+
+            stakeItem.innerHTML = `
+              <span>Amount: ${stake.amount} FIDES | Matured on: ${maturedDate}</span>
+              <button class="claimStakeBtn" data-stake-id="${stake.id}">Claim Stake</button>
+            `;
+
+            releasedStakesDiv.appendChild(stakeItem);
+          });
+
+          document.querySelectorAll('.claimStakeBtn').forEach(button => {
+            button.addEventListener('click', async (event) => {
+              const stakeId = event.target.dataset.stakeId;
+              event.target.disabled = true;
+              claimStakeStatusDiv.textContent = `⏳ Claiming stake ${stakeId}...`;
+
+              try {
+                const claimRes = await fetch(`/api/claim-stake/${stakeId}`, {
+                  method: "POST",
+                  credentials: "include"
+                });
+
+                const claimData = await claimRes.json();
+
+                if (!claimRes.ok) {
+                  throw new Error(claimData.message || "Claiming stake failed.");
+                }
+
+                claimStakeStatusDiv.textContent = `✅ Stake ${stakeId} claimed! ${claimData.message || ''}`;
+                event.target.closest('.stake-item').remove();
+              } catch (err) {
+                console.error("Claim stake error:", err);
+                claimStakeStatusDiv.textContent = `❌ Error claiming stake ${stakeId}: ${err.message}`;
+                event.target.disabled = false;
+              }
+            });
+          });
+
+        } else {
+          releasedStakesDiv.innerHTML = `<p>No completed stakes to claim yet.</p>`;
+        }
+
+      } catch (err) {
+        console.error("Error loading completed stakes:", err);
+        releasedStakesDiv.innerHTML = `<p>Error loading stakes: ${err.message}</p>`;
+      }
+    }
+
+    window.addEventListener('load', loadCompletedStakes);
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FIDES Dashboard</title>
+  <link rel="stylesheet" href="/style/shared.css" />
+</head>
+<body>
+
+  <!-- === App Bar === -->
+  <header class="app-bar">
+    <h1>FIDES Dashboard</h1>
+    <a href="/logout"><button class="logout">Logout</button></a>
+  </header>
+
+  <!-- === Navigation === -->
+  <nav>
+    <button onclick="navigate('airdrop')">Airdrop</button>
+    <button onclick="navigate('vault')">Vault</button>
+    <button onclick="navigate('swap')">Swap</button>
+  </nav>
+
+  <!-- === Main View === -->
+  <iframe id="view" src="frontend/airdrop.html"></iframe>
+
+  <script>
+    function navigate(page) {
+      document.getElementById("view").src = `frontend/${page}.html`;
+    }
+  </script>
+</body>
+</html>
